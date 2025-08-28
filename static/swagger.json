@@ -1,0 +1,237 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "BlueWave API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/observations": {
+      "get": {
+        "summary": "Get observations with optional filters",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "timezone",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of observations",
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "id": 1,
+                    "date": "2025-08-27",
+                    "time": "14:00",
+                    "timezone": "UTC",
+                    "coordinates": "51.5074, -0.1278",
+                    "temperature": 20.5,
+                    "humidity": 60,
+                    "wind": 5.2,
+                    "precipitation": 0,
+                    "haze": 0,
+                    "notes": "Sunny"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new observation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Observation" },
+              "example": {
+                "date": "2025-08-27",
+                "time": "14:00",
+                "timezone": "UTC",
+                "coordinates": "51.5074, -0.1278",
+                "temperature": 20.5,
+                "humidity": 60,
+                "wind": 5.2,
+                "precipitation": 0,
+                "haze": 0,
+                "notes": "Sunny"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Observation created" }
+        }
+      }
+    },
+    "/api/observations/<id>": {
+      "put": {
+        "summary": "Update an observation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Observation" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Observation updated" },
+          "403": { "description": "Cannot edit old records" }
+        }
+      },
+      "delete": {
+        "summary": "Delete an observation",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Observation deleted" } }
+      }
+    },
+    "/api/observations/bulk": {
+      "post": {
+        "summary": "Bulk create observations",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "records": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/Observation" }
+                  }
+                }
+              },
+              "example": {
+                "records": [
+                  {
+                    "date": "2025-08-27",
+                    "time": "14:00",
+                    "timezone": "UTC",
+                    "coordinates": "51.5074, -0.1278",
+                    "temperature": 20.5,
+                    "humidity": 60,
+                    "wind": 5.2,
+                    "precipitation": 0,
+                    "haze": 0,
+                    "notes": "Sunny"
+                  },
+                  {
+                    "date": "2025-08-28",
+                    "time": "09:00",
+                    "timezone": "UTC",
+                    "coordinates": "51.5074, -0.1278",
+                    "temperature": 18.3,
+                    "humidity": 55,
+                    "wind": 3.8,
+                    "precipitation": 1,
+                    "haze": 0,
+                    "notes": "Cloudy"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk operation results",
+            "content": {
+              "application/json": {
+                "example": [
+                  {"id": 1, "status": "created"},
+                  {"id": 2, "status": "created"}
+                ]
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Bulk update observations",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "records": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/Observation" }
+                  }
+                }
+              },
+              "example": {
+                "records": [
+                  {
+                    "id": 1,
+                    "temperature": 21,
+                    "notes": "Updated"
+                  },
+                  {
+                    "id": 2,
+                    "humidity": 58,
+                    "notes": "Updated"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk update results",
+            "content": {
+              "application/json": {
+                "example": [
+                  {"id": 1, "status": "updated"},
+                  {"id": 2, "status": "updated"}
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Observation": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "time": { "type": "string" },
+          "timezone": { "type": "string" },
+          "coordinates": { "type": "string" },
+          "temperature": { "type": "number" },
+          "humidity": { "type": "number" },
+          "wind": { "type": "number" },
+          "precipitation": { "type": "number" },
+          "haze": { "type": "number" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}
