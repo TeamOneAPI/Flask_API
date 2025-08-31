@@ -12,3 +12,14 @@ def is_current_quarter(date_str):
     now = datetime.utcnow()
     quarter_start = datetime(now.year, (now.month - 1) // 3 * 3 + 1, 1)
     return record_date >= quarter_start
+
+
+# ✅ Create observation (User + Admin)
+@api_bp.route("/observations", methods=["POST"])
+@jwt_required()
+def create_observation():
+    data = request.json
+    obs = Observation(**data)
+    db.session.add(obs)
+    db.session.commit()
+    return jsonify({"message": "Observation created", "id": obs.id}), 201
