@@ -4,23 +4,105 @@
     "title": "BlueWave API",
     "version": "1.0.0"
   },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Paste your JWT access token here. Example: Bearer eyJhbGciOiJIUzI1NiIsInR..."
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "username": { "type": "string" },
+          "password": { "type": "string" },
+          "role": { "type": "string", "enum": ["user", "admin"] }
+        },
+        "required": ["username", "password"]
+      },
+      "Observation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "date": { "type": "string", "format": "date" },
+          "time": { "type": "string" },
+          "timezone": { "type": "string" },
+          "coordinates": { "type": "string" },
+          "temperature": { "type": "number" },
+          "humidity": { "type": "number" },
+          "wind": { "type": "number" },
+          "precipitation": { "type": "number" },
+          "haze": { "type": "number" },
+          "notes": { "type": "string" }
+        }
+      },
+      "BulkObservations": {
+        "type": "object",
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Observation" }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
   "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new user (defaults to 'user')",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" },
+              "examples": {
+                "User": { "value": { "username": "bob", "password": "mypassword", "role": "user" } },
+                "Admin": { "value": { "username": "alice", "password": "adminpass", "role": "admin" } }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "User registered successfully" } }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login to obtain JWT",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/User" },
+              "examples": {
+                "User": { "value": { "username": "bob", "password": "mypassword" } },
+                "Admin": { "value": { "username": "alice", "password": "adminpass" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JWT access token",
+            "content": {
+              "application/json": {
+                "example": { "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/observations": {
       "get": {
-        "summary": "Get observations with optional filters",
+        "summary": "Get all observations",
         "parameters": [
-          {
-            "name": "date",
-            "in": "query",
-            "required": false,
-            "schema": { "type": "string", "format": "date" }
-          },
-          {
-            "name": "timezone",
-            "in": "query",
-            "required": false,
-            "schema": { "type": "string" }
-          }
+          { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" }, "required": false },
+          { "name": "timezone", "in": "query", "schema": { "type": "string" }, "required": false }
         ],
         "responses": {
           "200": {
@@ -69,41 +151,31 @@
             }
           }
         },
-        "responses": {
-          "201": { "description": "Observation created" }
-        }
+        "responses": { "201": { "description": "Observation created" } }
       }
     },
-    "/api/observations/<id>": {
+    "/api/observations/{id}": {
       "put": {
-        "summary": "Update an observation",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "integer" }
-          }
-        ],
+        "summary": "Update an observation (Admin only)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Observation" }
-            }
+            "application/json": { "schema": { "$ref": "#/components/schemas/Observation" } }
           }
         },
         "responses": {
           "200": { "description": "Observation updated" },
-          "403": { "description": "Cannot edit old records" }
+          "403": { "description": "Forbidden: requires Admin role" }
         }
       },
       "delete": {
-        "summary": "Delete an observation",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
-        ],
-        "responses": { "200": { "description": "Observation deleted" } }
+        "summary": "Delete an observation (Admin only)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": {
+          "200": { "description": "Observation deleted" },
+          "403": { "description": "Forbidden: requires Admin role" }
+        }
       }
     },
     "/api/observations/bulk": {
@@ -113,49 +185,46 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "records": {
-                    "type": "array",
-                    "items": { "$ref": "#/components/schemas/Observation" }
+              "schema": { "$ref": "#/components/schemas/BulkObservations" },
+              "examples": {
+                "CreateRecords": {
+                  "summary": "Bulk create example",
+                  "value": {
+                    "records": [
+                      {
+                        "date": "2025-08-27",
+                        "time": "14:00",
+                        "timezone": "UTC",
+                        "coordinates": "51.5074, -0.1278",
+                        "temperature": 20.5,
+                        "humidity": 60,
+                        "wind": 5.2,
+                        "precipitation": 0,
+                        "haze": 0,
+                        "notes": "Sunny"
+                      },
+                      {
+                        "date": "2025-08-28",
+                        "time": "09:00",
+                        "timezone": "UTC",
+                        "coordinates": "51.5074, -0.1278",
+                        "temperature": 18.3,
+                        "humidity": 55,
+                        "wind": 3.8,
+                        "precipitation": 1,
+                        "haze": 0,
+                        "notes": "Cloudy"
+                      }
+                    ]
                   }
                 }
-              },
-              "example": {
-                "records": [
-                  {
-                    "date": "2025-08-27",
-                    "time": "14:00",
-                    "timezone": "UTC",
-                    "coordinates": "51.5074, -0.1278",
-                    "temperature": 20.5,
-                    "humidity": 60,
-                    "wind": 5.2,
-                    "precipitation": 0,
-                    "haze": 0,
-                    "notes": "Sunny"
-                  },
-                  {
-                    "date": "2025-08-28",
-                    "time": "09:00",
-                    "timezone": "UTC",
-                    "coordinates": "51.5074, -0.1278",
-                    "temperature": 18.3,
-                    "humidity": 55,
-                    "wind": 3.8,
-                    "precipitation": 1,
-                    "haze": 0,
-                    "notes": "Cloudy"
-                  }
-                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Bulk operation results",
+            "description": "Bulk create results",
             "content": {
               "application/json": {
                 "example": [
@@ -168,33 +237,22 @@
         }
       },
       "put": {
-        "summary": "Bulk update observations",
+        "summary": "Bulk update observations (Admin only)",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "records": {
-                    "type": "array",
-                    "items": { "$ref": "#/components/schemas/Observation" }
+              "schema": { "$ref": "#/components/schemas/BulkObservations" },
+              "examples": {
+                "UpdateRecords": {
+                  "summary": "Bulk update example",
+                  "value": {
+                    "records": [
+                      {"id": 1, "temperature": 21, "humidity": 62, "notes": "Updated record"},
+                      {"id": 2, "temperature": 19, "humidity": 57, "notes": "Updated record"}
+                    ]
                   }
                 }
-              },
-              "example": {
-                "records": [
-                  {
-                    "id": 1,
-                    "temperature": 21,
-                    "notes": "Updated"
-                  },
-                  {
-                    "id": 2,
-                    "humidity": 58,
-                    "notes": "Updated"
-                  }
-                ]
               }
             }
           }
@@ -210,26 +268,8 @@
                 ]
               }
             }
-          }
-        }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "Observation": {
-        "type": "object",
-        "properties": {
-          "date": { "type": "string", "format": "date" },
-          "time": { "type": "string" },
-          "timezone": { "type": "string" },
-          "coordinates": { "type": "string" },
-          "temperature": { "type": "number" },
-          "humidity": { "type": "number" },
-          "wind": { "type": "number" },
-          "precipitation": { "type": "number" },
-          "haze": { "type": "number" },
-          "notes": { "type": "string" }
+          },
+          "403": { "description": "Forbidden: requires Admin role" }
         }
       }
     }
