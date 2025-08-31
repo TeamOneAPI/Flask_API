@@ -1,6 +1,5 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
-from flask_sqlalchemy import SQLAlchemy
 from models import db
 from config import Config
 from routes import api_bp
@@ -18,16 +17,24 @@ jwt = JWTManager(app)
 app.register_blueprint(auth_bp, url_prefix="/auth")
 app.register_blueprint(api_bp, url_prefix="/api")
 
-# @app.route("/")
-# def index():
-#     return "Welcome to BlueWave API! Go to /api/docs for Swagger UI."
-
-
 # Swagger – US-06
 SWAGGER_URL = "/api/docs"
 API_URL = "/static/swagger.json"
 swaggerui_blueprint = get_swaggerui_blueprint(
-    SWAGGER_URL, API_URL, config={"app_name": "BlueWave API"}
+    SWAGGER_URL,
+    API_URL,
+    config={
+        "app_name": "BlueWave API",
+        "requestInterceptor": """
+            function(request) {
+                // Automatically prepend 'Bearer ' if Authorization header exists
+                if (request.headers['Authorization'] && !request.headers['Authorization'].startsWith('Bearer ')) {
+                    request.headers['Authorization'] = 'Bearer ' + request.headers['Authorization'];
+                }
+                return request;
+            }
+        """
+    }
 )
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
