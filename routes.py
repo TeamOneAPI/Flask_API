@@ -1,4 +1,8 @@
-from flask import request, jsonify, Blueprint
-from flask_jwt_extended import create_access_token, jwt_required, JWTManager
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required
+from datetime import datetime
+from models import db, Observation
+from decorators import role_required  # ✅ claim-based role check
 
-#checking out how to pull repo
+api_bp = Blueprint("api", __name__)
+
