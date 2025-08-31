@@ -1,43 +1,45 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
-from models import db, User
+from flask import Flask
+from flask_jwt_extended import JWTManager
+from models import db
+from config import Config
+from routes import api_bp
+from auth import auth_bp
+from flask_swagger_ui import get_swaggerui_blueprint
 
-auth_bp = Blueprint("auth", __name__)
+app = Flask(__name__)
+app.config.from_object(Config)
 
-# 🔹 Register new user
-@auth_bp.route("/register", methods=["POST"])
-def register():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
-    role = data.get("role", "user")  # 👈 default role = "user"
+# Init extensions
+db.init_app(app)
+jwt = JWTManager(app)
 
-    if User.query.filter_by(username=username).first():
-        return jsonify({"error": "Username already exists"}), 400
+# Register blueprints
+app.register_blueprint(auth_bp, url_prefix="/auth")
+app.register_blueprint(api_bp, url_prefix="/api")
 
-    new_user = User(username=username, role=role)
-    new_user.set_password(password)
-    db.session.add(new_user)
-    db.session.commit()
+# Swagger – US-06
+SWAGGER_URL = "/api/docs"
+API_URL = "/static/swagger.json"
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={
+        "app_name": "BlueWave API",
+        "requestInterceptor": """
+            function(request) {
+                // Automatically prepend 'Bearer ' if Authorization header exists
+                if (request.headers['Authorization'] && !request.headers['Authorization'].startsWith('Bearer ')) {
+                    request.headers['Authorization'] = 'Bearer ' + request.headers['Authorization'];
+                }
+                return request;
+            }
+        """
+    }
+)
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
-    return jsonify({"message": "User registered successfully", "role": role}), 201
+with app.app_context():
+    db.create_all()
 
-
-# 🔹 Login existing user
-@auth_bp.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
-
-    user = User.query.filter_by(username=username).first()
-    if user and user.check_password(password):
-        # ✅ identity must be a string (username)
-        # ✅ role is stored in additional_claims
-        token = create_access_token(
-            identity=username,
-            additional_claims={"role": user.role}
-        )
-        return jsonify(access_token=token), 200
-
-    return jsonify({"error": "Invalid credentials"}), 401
+if __name__ == "__main__":
+    app.run(debug=True)
