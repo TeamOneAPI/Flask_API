@@ -57,3 +57,42 @@ def bulk_update_observations():
             results.append({"id": data["id"], "status": "not found"})
     db.session.commit()
     return jsonify(results), 200
+
+# ✅ Get observations with filters (User + Admin)
+@api_bp.route("/observations", methods=["GET"])
+@jwt_required()
+def get_observations():
+    query = Observation.query
+    # Apply filters
+    if request.args.get("date"):
+        query = query.filter_by(date=request.args["date"])
+    if request.args.get("timezone"):
+        query = query.filter_by(timezone=request.args["timezone"])
+    results = query.all()
+    return jsonify([obs.to_dict() for obs in results])
+
+
+# ✅ Update observation (Admin only)
+@api_bp.route("/observations/<int:id>", methods=["PUT", "PATCH"])
+@jwt_required()
+@role_required("admin")
+def update_observation(id):
+    obs = Observation.query.get_or_404(id)
+    if not is_current_quarter(obs.date):
+        return jsonify({"error": "Cannot edit records from previous quarters"}), 403
+    data = request.json
+    for k, v in data.items():
+        setattr(obs, k, v)
+    db.session.commit()
+    return jsonify({"message": "Observation updated"})
+
+
+# ✅ Delete observation (Admin only)
+@api_bp.route("/observations/<int:id>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin")
+def delete_observation(id):
+    obs = Observation.query.get_or_404(id)
+    db.session.delete(obs)
+    db.session.commit()
+    return jsonify({"message": "Observation deleted"})
